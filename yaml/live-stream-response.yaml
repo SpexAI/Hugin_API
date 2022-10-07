@@ -1,0 +1,30 @@
+# This is the example to trigger a live-stream from any of the hugin cameras
+live-stream-response:
+  led-power-levels: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.8, 0.7, 0.7, 0.7] # Confirmation on the actual status
+  ip: '192.168.9.99' # current local ip
+  main: 
+    streaming: true # false
+    udp: 50043 # port for the gstreamer sink
+  IR: 
+    streaming: true
+    udp: 50044 #port for the gsteramer sink
+  3D-0:     
+    streaming-rgb: true
+    rgb-udp: 50045
+    streaming-depth: false
+    depth-udp: 50046
+  3D-1:     
+    streaming-rgb: true
+    rgb-udp: 50047
+    streaming-depth: false
+    depth-udp: 50048
+  3D-2:     
+    streaming-rgb: true
+    rgb-udp: 50049
+    streaming-depth: false
+    depth-udp: 50050
+  3D-3:     
+    streaming-rgb: true
+    rgb-udp: 50051
+    streaming-depth: false
+    depth-udp: 50052

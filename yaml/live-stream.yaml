@@ -1,0 +1,26 @@
+# This is the example to trigger a live-stream from any of the hugin cameras
+live-stream:
+  led-power-levels: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.8, 0.7, 0.7, 0.7] # select the power level for each led
+  main: 
+    stream: true # false
+    auto-exposure: true #false
+    resolution: 'low' # 'high' either 800x600 or full resolution 
+    expsoure: 100 # in ms 
+  IR: 
+    stream: true # false
+  3D-0: 
+    preset: 'day' # same as before
+    stream-rgb: true
+    stream-depth: false
+  3D-1: 
+    preset: 'day' # same as before
+    stream-rgb: true
+    stream-depth: false
+  3D-2: 
+    preset: 'day' # same as before
+    stream-rgb: true
+    stream-depth: false
+  3D-3: 
+    preset: 'day' # same as before
+    stream-rgb: true
+    stream-depth: false

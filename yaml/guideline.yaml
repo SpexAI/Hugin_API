@@ -1,0 +1,37 @@
+# This is just the guidline file for a normal image capture routine
+required: 
+  plant-id: 'plant-id' #plant id as used by client
+  uuid: 'uuid' #uuid given by the system   
+  time-stamp: 'yy-mm-dd-hh-mm-ss' # UTC always
+  position: 
+    greenhouse: 'greenhouse-name' # as it appears in the front end     
+    is-fixed: true # false if one fixed position or table
+    fixed:
+      x: 1.2 # position x on the greenhouse grid as in the FE
+      y: 1.6  # positon y on the greenhouse grid as in the FE
+    table: 
+      table-id: 'table-id' #id of the table 
+      row: 0 # row position on the table
+      col: 0 # col positioin on the table
+  sensors:
+    spectral:
+      in-use: true # false
+      default-settings: true # false 
+      settings: 
+        channels: 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14 #order and number of channels used
+        exposure-time: 100 #ms or -1 for default values
+    thermal: 
+      in-use: true
+      default-settings: true
+      #Not sure if there are any non default settings that we can choose here.
+    3D: 
+      in-use: true
+      default-settings: true
+      settings:
+        preset: 'day' # The D415 can be configured through a config.json, we will make at least two day|night settings
+        # For the future experimental to be inline with LEDs for potential fluorescence or something else
+desired:
+  genotype: 'genotpye' #plant genotype
+  date-of-flower-induction: 'yy-mm-dd' 
+optional:
+  ### open to extend any information here that should be included in the meta data of the captured files
