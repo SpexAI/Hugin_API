@@ -10,7 +10,7 @@
 
  ## Trigger of the Image accquistion 
 
- Send the **guidline.yaml** file over **tcp:TBD** to Hugin using **ZeroMQ:TBD**. 
+ Send the **guidline.yaml** file over **tcp:5555** to Hugin using **ZeroMQ**. 
 
 ## Stream 3D Distance
 
