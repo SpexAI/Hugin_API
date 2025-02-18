@@ -1,5 +1,6 @@
 # This is just the guidline file for a normal image capture routine
 required: 
+  path: 'test/test/' #path to the bucket
   plant-id: 'plant-id' #plant id as used by client
   uuid: 'uuid' #uuid given by the system   
   time-stamp: 'yy-mm-dd-hh-mm-ss' # UTC always
