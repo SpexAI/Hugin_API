@@ -24,7 +24,10 @@ The client uses ZMQ (ZeroMQ) for reliable communication with the Hugin system, s
 git clone https://github.com/SpexAI/Hugin_API.git
 
 # Install dependencies
-pip install zmq pyyaml asyncio
+pip install -r python_examples/requirements.txt
+
+# For WUR API server additional dependencies
+pip install fastapi uvicorn aiohttp python-dotenv
 ```
 
 ## Usage
@@ -148,6 +151,317 @@ async def handle_acquisition():
         
     return False
 ```
+
+### WUR API
+
+# Remote Imaging Interface API Documentation
+
+## Overview
+
+The Remote Imaging Interface API enables interaction with cameras via a remote plugin mechanism. This API allows users to control camera settings, trigger imaging tasks, monitor status, and retrieve image data.
+
+## API Workflow
+
+The WIWAM software uses this API in the following sequence:
+
+1. Check camera status using `/status`
+2. Get available settings files using `/settings`
+3. Select a settings file using `/settings/{settingsName}`
+4. Provide metadata for the imaging task using `/metadata`
+5. Trigger an imaging task using `/trigger/{plantId}`
+6. Poll the status of the trigger using `/status/{triggerId}`
+7. Retrieve the image location using `/getimageid/{triggerId}` (after successful completion)
+8. Return to step 1
+
+## Base URLs
+
+- `http://localhost/RemoteImagingInterface`
+- `https://localhost/RemoteImagingInterface`
+
+## Running the WUR API Server
+
+The WUR API server implements the Remote Imaging Interface defined in the OpenAPI specification. It acts as a bridge between REST clients and the Hugin ZMQ interface.
+
+```bash
+# Start the server
+python -m wur_api.api_server
+
+# Server will be available at http://localhost:8000
+```
+
+## Testing with the Dummy Hugin Server
+
+For development and testing without a physical Hugin system, use the dummy Hugin server:
+
+```bash
+# Start the dummy Hugin ZMQ server
+python -m wur_api.dummy_hugin --port 5555 --error-rate 0.2
+
+# In another terminal, start the WUR API server
+python -m wur_api.api_server
+```
+
+The dummy server simulates the behavior of a real Hugin system, including occasional errors, to test the API's error handling capabilities.
+
+## Endpoints
+
+### Check Camera Status
+
+```
+GET /status
+```
+
+Gets the overall status of the imaging system.
+
+**Response Types:** Error, Message
+
+**Possible Status Values:**
+- `idle`: No action is ongoing, system is ready for a new imaging task
+- `busy`: An imaging task is ongoing (triggerId is provided in the output)
+- `error`: System is in error state, manual intervention required
+
+**Example Response:**
+```json
+{
+  "Values": [],
+  "Message": {
+    "MessageText": "idle",
+    "Type": "Message"
+  }
+}
+```
+
+### List Available Settings
+
+```
+GET /settings
+```
+
+Gets a list of available settings files.
+
+**Response Types:** None, Error, Message
+
+**Example Response:**
+```json
+{
+  "Values": ["setting1", "setting2"],
+  "Message": {
+    "MessageText": "",
+    "Type": "None"
+  }
+}
+```
+
+### Apply Settings
+
+```
+PUT /settings/{settingsName}
+```
+
+Applies a settings file for the next imaging task.
+
+**Parameters:**
+- `settingsName` (path): Name/identifier of a group of settings
+
+**Response Types:** Error, Success
+
+**Example Response:**
+```json
+{
+  "Values": [],
+  "Message": {
+    "MessageText": "",
+    "Type": "Success"
+  }
+}
+```
+
+### Set Metadata
+
+```
+POST /metadata
+```
+
+Sets new metadata for the next imaging task.
+
+**Request Body:** `ImagingMetaData` object
+
+**Response Types:** Error, Success
+
+**Example Response (Error):**
+```json
+{
+  "Values": [],
+  "Message": {
+    "MessageText": "Received metadata is null",
+    "Type": "Error"
+  }
+}
+```
+
+### Trigger Imaging Task
+
+```
+PUT /trigger/{plantId}
+```
+
+Triggers a new imaging task.
+
+**Parameters:**
+- `plantId` (path): ID of the plant to be imaged (should match ID provided via metadata)
+
+**Response Types:** Error, Warning, Success
+
+**Example Response (Success):**
+```json
+{
+  "Values": ["triggerId"],
+  "Message": {
+    "MessageText": "",
+    "Type": "Success"
+  }
+}
+```
+
+### Check Trigger Status
+
+```
+GET /status/{triggerId}
+```
+
+Gets status information for a previously triggered plant.
+
+**Parameters:**
+- `triggerId` (path): ID provided by the Trigger call
+
+**Response Type:** Message
+
+**Possible Status Values:**
+- `finished`: Imaging task completed
+- `busy`: Imaging task in progress
+- `invalid`: Invalid trigger ID
+- `error`: Error occurred during imaging
+
+**Example Response:**
+```json
+{
+  "Values": [],
+  "Message": {
+    "MessageText": "finished",
+    "Type": "Message"
+  }
+}
+```
+
+### Get Image ID
+
+```
+GET /getimageid/{triggerId}
+```
+
+Gets information about the captured image.
+
+**Parameters:**
+- `triggerId` (path): ID provided by the Trigger call
+
+**Response Types:** Error, Message
+
+**Example Response (Error):**
+```json
+{
+  "Values": [],
+  "Message": {
+    "MessageText": "Camera is in error",
+    "Type": "Error"
+  }
+}
+```
+
+### Register for Notifications
+
+```
+POST /register
+```
+
+Registers the client to receive notifications when images are taken.
+
+**Request Body:** `CallBackRegistrationData` object
+
+**Response Types:** Success, Error
+
+**Example Response:**
+```json
+{
+  "Values": [],
+  "Message": {
+    "MessageText": "",
+    "Type": "Success"
+  }
+}
+```
+
+### Unregister from Notifications
+
+```
+POST /unregister
+```
+
+Unregisters a client from receiving notifications.
+
+**Parameters:**
+- `ClientName` (query): Client identifier
+
+**Response Types:** Success, Error
+
+**Example Response:**
+```json
+{
+  "Values": [],
+  "Message": {
+    "MessageText": "",
+    "Type": "Success"
+  }
+}
+```
+
+## Data Models
+
+### ImagingMetaData
+
+```json
+{
+  "PlantId": "string",        // Plant identifier, unique within experiment
+  "ExperimentId": "string",   // Experiment identifier
+  "TreatmentId": "string",    // Treatment identifier
+  "Height": 0.0,              // Height at which the plant is elevated
+  "Angle": 0.0                // Angle at which the plant is rotated for imaging
+}
+```
+
+### CallBackRegistrationData
+
+```json
+{
+  "ClientName": "string",     // Name to identify a registered client
+  "Uri": "string",            // URI where notifications should be sent
+  "SendPathInfo": true,       // Whether to send the path where an image is stored
+  "SendData": true,           // Whether to send the image data as binary blob
+  "HeartBeatInterval": 0      // Interval in ms for heartbeat (0 = no heartbeat)
+}
+```
+
+### Response
+
+```json
+{
+  "Values": ["string"],       // Values returned, if any
+  "Message": {
+    "MessageText": "string",  // Extra info about the status of the call
+    "Type": "string"          // Type: None, Error, Warning, Message, Success
+  }
+}
+```
+
 
 ## Contributing
 

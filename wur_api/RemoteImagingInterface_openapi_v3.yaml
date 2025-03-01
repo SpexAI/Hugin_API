@@ -1,0 +1,367 @@
+﻿openapi: 3.0.1
+info:
+  title: RemoteImagingInterface
+  description: REST API description for the SMO WIWAM remote imaging interface. This
+    interface allows to work with cameras via a remote plugin mechanism.
+  version: 1.0.15.0
+servers:
+- url: http://localhost/RemoteImagingInterface
+- url: https://localhost/RemoteImagingInterface
+paths:
+  /metadata:
+    post:
+      tags:
+      - RemoteImagingInterface
+      summary: SetMetaData
+      description: Set new metadata for the next imaging task. Allowed types in Response
+        are "Error" and "Success".
+      requestBody:
+        description: Fields to provide
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImagingMetaData'
+        required: false
+      responses:
+        200:
+          description: Response containing the plantId in the "Values" field, if successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+              example:
+                Values: []
+                Message:
+                  MessageText: Received metadata is null
+                  Type: Error
+        default:
+          description: failed
+          content:
+            application/json:
+              schema:
+                type: string
+  /settings:
+    get:
+      tags:
+      - RemoteImagingInterface
+      summary: GetSettings
+      description: Get a list of available settings files. Allowed types in Response
+        are "None", "Error", and "Message".
+      responses:
+        200:
+          description: Response containing the names of the files in the "Values"
+            field.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+              example:
+                Values: ["setting1", "setting2"]
+                Message:
+                  MessageText: ""
+                  Type: None
+        default:
+          description: failed
+          content:
+            application/json:
+              schema:
+                type: string
+  /settings/{settingsName}:
+    put:
+      tags:
+      - RemoteImagingInterface
+      summary: SetSettings
+      description: Apply a settings file for the next imaging task. Allowed types
+        are "Error" and "Success".
+      parameters:
+      - name: settingsName
+        in: path
+        description: Name/identifier of a group of settings, returned via the GetSettings
+          call.
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: Response indicating whether the settings were successfully
+            applied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+              example:
+                Values: []
+                Message:
+                  MessageText: ""
+                  Type: Success
+        default:
+          description: failed
+          content:
+            application/json:
+              schema:
+                type: string
+  /status:
+    get:
+      tags:
+      - RemoteImagingInterface
+      summary: GetStatus
+      description: Get overall status information. Possible status are at least "idle",
+        "busy" and "error". Status "idle" means no action is ongoing in the imaging
+        system and the system is ready for a new imaging trigger. Status "busy" means
+        an imaging task is still ongoing, the triggerId is provided in the json output.
+        Status "error" means that the imaging system is in error state and manual
+        intervention is required before the system is available again. Allowed types
+        in Response are "Error" and "Message".
+      responses:
+        200:
+          description: Response describing the status of the camera in the "MessageText"
+            field and possibly the triggerId in the "Values" field.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+              example:
+                Values: []
+                Message:
+                  MessageText: "idle"
+                  Type: Message
+        default:
+          description: failed
+          content:
+            application/json:
+              schema:
+                type: string
+  /trigger/{plantId}:
+    put:
+      tags:
+      - RemoteImagingInterface
+      summary: Trigger
+      description: Trigger a new imaging task. Allowed types in Response are "Error",
+        "Warning" and "Success".
+      parameters:
+      - name: plantId
+        in: path
+        description: Id of the plant that will be imaged, should match Id previously
+          provided via the SetMetadata call.
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: Response containing the triggerId in the "Values" field, if
+            successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+              example:
+                Values: [triggerId]
+                Message:
+                  MessageText: ""
+                  Type: Success
+        default:
+          description: failed
+          content:
+            application/json:
+              schema:
+                type: string
+  /status/{triggerId}:
+    get:
+      tags:
+      - RemoteImagingInterface
+      summary: GetStatusForId
+      description: Get status information from a previously triggered plant. Possible
+        status are at least "finished", "busy", "invalid", "error". Allowed type in
+        Response is "Message".
+      parameters:
+      - name: triggerId
+        in: path
+        description: Id previously provided via the Trigger call.
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: Response describing the status of the imaging task in the "MessageText"
+            field.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+              example:
+                Values: []
+                Message:
+                  MessageText: "finished"
+                  Type: Message
+        default:
+          description: failed
+          content:
+            application/json:
+              schema:
+                type: string
+  /getimageid/{triggerId}:
+    get:
+      tags:
+      - RemoteImagingInterface
+      summary: GetImageId
+      description: Get information of the taken image. Allowed types in Response are
+        "Error" and "Message".
+      parameters:
+      - name: triggerId
+        in: path
+        description: Id previously provided via the Trigger call.
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: Response containing the imageId in the "Values" field, if any.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+              example:
+                Values: []
+                Message:
+                  MessageText: "Camera is in error"
+                  Type: Error
+        default:
+          description: failed
+          content:
+            application/json:
+              schema:
+                type: string
+  /register:
+    post:
+      tags:
+      - RemoteImagingInterface
+      summary: Register
+      description: Register the sender as a party that wants to receive notifications.
+        Upon trigger the camera a notification is sent to the registered client to
+        inform about the new image taken.
+      requestBody:
+        description: Required info for the registration
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CallBackRegistrationData'
+        required: false
+      responses:
+        200:
+          description: Response indicating the status of registration, where type
+            can be Success or Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+              example:
+                Values: []
+                Message:
+                  MessageText: ""
+                  Type: Success
+        default:
+          description: failed
+          content:
+            application/json:
+              schema:
+                type: string
+      x-codegen-request-body-name: registration_data
+  /unregister:
+    post:
+      tags:
+      - RemoteImagingInterface
+      summary: Unregister
+      parameters:
+      - name: ClientName
+        in: query
+        schema:
+          type: string
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+              example:
+                Values: []
+                Message:
+                  MessageText: ""
+                  Type: Success
+        default:
+          description: failed
+          content:
+            application/json:
+              schema:
+                type: string
+components:
+  schemas:
+    ImagingMetaData:
+      type: object
+      properties:
+        PlantId:
+          type: string
+          description: Plant identifier, eg. QR code, datamatrix,... should be unique
+            within experiment
+        ExperimentId:
+          type: string
+          description: Experiment identifier
+        TreatmentId:
+          type: string
+          description: Treatment identifier
+        Height:
+          type: number
+          description: Height at which the plant is elevated
+          format: decimal(9,2)
+        Angle:
+          type: number
+          description: Angle at which the plant is rotated for imaging
+          format: decimal(9,2)
+      description: Group metadata of a plant
+    Response:
+      type: object
+      properties:
+        Values:
+          type: array
+          description: Values returned if any
+          items:
+            type: string
+        Message:
+          $ref: '#/components/schemas/Message'
+      description: Response object describing status of the call
+    CallBackRegistrationData:
+      type: object
+      properties:
+        ClientName:
+          type: string
+          description: Name to identify a registered client
+        Uri:
+          type: string
+          description: Uri where notifications should be sent
+        SendPathInfo:
+          type: boolean
+          description: Indicates whether to send the path where an image is stored
+            in the notifications
+        SendData:
+          type: boolean
+          description: Indicates whether to send the image data as binary blob in
+            the notifications
+        HeartBeatInterval:
+          type: number
+          description: Indicates whether to send a periodic heartbeat to inform the
+            registered client about the status of the service. When set to 0, no heartbeat
+            is sent. Interval is expressed in milliseconds.
+          format: int32
+      description: Information required to register for notifications upon imaging
+        events
+    Message:
+      type: object
+      properties:
+        MessageText:
+          type: string
+          description: Extra info about the status of the call
+        Type:
+          type: string
+          description: Type of message, possible values are 'None', 'Error', 'Warning',
+            'Message', 'Success'
+      description: Messages object returned by API
