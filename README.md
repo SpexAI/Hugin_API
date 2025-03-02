@@ -244,9 +244,33 @@ Example:
 
 The WUR API implements the Remote Imaging Interface specification, providing a RESTful interface to the Hugin system. It works by translating HTTP requests to ZMQ messages and handling the response.
 
-<div align="center">
-  <img src="https://mermaid.ink/img/pako:eNqFks1OwkAQx1-l2RML6aSFQmNj4gc3o8aLF1MPy3bamli2YTuIF9-Ad5_BeCQxmvgYPbUm6owFL30ke_j_fv_Z2ekBwTkF1Aa3lnGRJPwccCl4ykzPSJkNuhbI0HEZKdE1fPAAZQdE1zqhJXt_n-7I4-fL2jEJ-FBu_CbEV_Kx3-Bj_HV5MQZrTYjvcdtILGF-BaxXX8YEIu-xMRYX7F71rbvs3Q9vbs8Ou6vO48dFHSKAwuVSMxsIkY69jdWbFDxmbXVJsyuDCm6FLkpR7Y05N-Ns2wjlJa211RKCCDreQHvRaUejoV7sNFXRgimAQcyFrRu2Yk5sRrgnfU08JRQzIcEAG0mXs9NyldtZRXQttD7KssPz4HrISrEu-JiiHxOyP4-A-yZI5QSzDJCTcpYbf3hKSZ-xsOAaqQ5VCO2kmzB7CQWyQDYxl4zYoC0Vyxcj4nUn4XmVynvp_i_zM8jM7OwHmdMpHQ?type=png" width="800" alt="WUR API Flowchart">
-</div>
+```mermaid
+graph TD
+    Client[Client Application] -->|1. REST Request| WURAPI[WUR API Server]
+    WURAPI -->|2. Parse & Validate| Transform[Transform Request]
+    Transform -->|3. Prepare ZMQ Message| ZMQClient[ZMQ Client]
+    ZMQClient -->|4. Send Message| Hugin[Hugin System]
+    Hugin -->|5. Process Request| Hugin
+    Hugin -->|6. Send Response| ZMQClient
+    ZMQClient -->|7. Parse Response| WURAPI
+    WURAPI -->|8. Format REST Response| Client
+
+    subgraph "WUR API Server"
+        WURAPI
+        Transform
+        ZMQClient
+    end
+
+    subgraph "Error Handling"
+        WURAPI -->|Error Code Processing| ErrorMap[Error Mapping]
+        ErrorMap -->|Translate Error Codes| WURAPI
+    end
+
+    subgraph "Notification System"
+        WURAPI -->|Status Updates| Webhook[Webhook Manager]
+        Webhook -->|Send Notifications| ClientNotif[Registered Clients]
+    end
+```
 
 ### API Workflow
 
