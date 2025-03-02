@@ -3,7 +3,7 @@ Pytest configuration for Hugin API tests.
 """
 
 import os
-import pytest
+import pytest, pytest_asyncio
 import asyncio
 import socket
 from typing import Dict, Any, Generator
@@ -22,14 +22,14 @@ def find_free_port() -> int:
         return s.getsockname()[1]
 
 # FastAPI test client fixture
-@pytest.fixture
+@pytest_asyncio.fixture
 def api_client() -> Generator[TestClient, None, None]:
     """Create a FastAPI test client."""
     client = TestClient(app)
     yield client
 
 # Environment variables fixture for testing
-@pytest.fixture
+@pytest_asyncio.fixture
 def test_env() -> Dict[str, str]:
     """Return test environment variables."""
     return {
@@ -44,7 +44,7 @@ def test_env() -> Dict[str, str]:
     }
 
 # Set environment variables for tests
-@pytest.fixture(autouse=True)
+@pytest_asyncio.fixture(autouse=True)
 def set_test_env(test_env: Dict[str, str]) -> Generator[None, None, None]:
     """Set environment variables for testing."""
     # Save original environment
@@ -64,7 +64,7 @@ def set_test_env(test_env: Dict[str, str]) -> Generator[None, None, None]:
             os.environ[key] = value
 
 # Dummy Hugin server fixture
-@pytest.fixture
+@pytest_asyncio.fixture
 async def dummy_hugin(test_env: Dict[str, str]) -> Generator[DummyHuginServer, None, None]:
     """Start dummy Hugin server for testing."""
     port = int(test_env["HUGIN_ZMQ_PORT"])
@@ -78,11 +78,3 @@ async def dummy_hugin(test_env: Dict[str, str]) -> Generator[DummyHuginServer, N
     # Clean up
     await server.stop()
 
-# Event loop fixture for async tests
-@pytest.fixture(scope="session")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
-    """Create event loop for async tests."""
-    policy = asyncio.get_event_loop_policy()
-    loop = policy.new_event_loop()
-    yield loop
-    loop.close()

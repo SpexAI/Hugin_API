@@ -21,7 +21,7 @@ from enum import IntFlag, auto
 from pathlib import Path
 from typing import Dict, List, Optional, Union, Any, Set, Tuple
 from urllib.parse import urlparse
-
+from contextlib import asynccontextmanager
 import zmq.asyncio
 from fastapi import FastAPI, HTTPException, Path as PathParam, Query, Body, BackgroundTasks
 from fastapi.responses import JSONResponse
@@ -541,19 +541,24 @@ app = FastAPI(
 # Create API state
 state = APIState()
 
-# Initialize the API state on startup
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     state.init_zmq_client()
     state.load_settings_files()
     logger.info(f"WUR API server started on {WUR_API_HOST}:{WUR_API_PORT}")
-    
-# Cleanup on shutdown
-@app.on_event("shutdown")
-async def shutdown_event():
+
+    yield  # This separates startup from shutdown code
+
     await state.close()
     logger.info("WUR API server shut down")
 
+app = FastAPI(
+    title="RemoteImagingInterface",
+    description="REST API for the SMO WIWAM remote imaging interface",
+    version="1.0.15.0",
+    root_path="/RemoteImagingInterface",  # Match OpenAPI specification base path
+    lifespan=lifespan  # Add this line to use the lifespan context manager
+)
 # API endpoints
 @app.get("/status", response_model=Response)
 async def get_status():
@@ -635,7 +640,7 @@ async def set_metadata(metadata: ImagingMetaData = Body(...)):
             )
         
         # Store metadata for next imaging task
-        state.current_metadata = metadata.dict()
+        state.current_metadata = metadata.model_dump()
         
         return Response(
             Values=[],

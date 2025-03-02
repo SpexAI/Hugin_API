@@ -91,58 +91,98 @@ class DummyHuginServer:
         self.running = True
         self.task = asyncio.create_task(self._process_requests())
         logger.info("Dummy Hugin server started")
-        
+
     async def stop(self) -> None:
         """Stop the server."""
+        logger.info("Stopping DummyHuginServer...")
         self.running = False
+
         if self.task:
-            await self.task
-        self.socket.close()
-        logger.info("Dummy Hugin server stopped")
-        
+            try:
+                # Cancel the task
+                self.task.cancel()
+                # Wait for it to complete with a timeout
+                try:
+                    await asyncio.wait_for(self.task, timeout=1.0)
+                except asyncio.TimeoutError:
+                    logger.warning("Task cancellation timed out")
+            except Exception as e:
+                logger.error(f"Error cancelling task: {e}", exc_info=True)
+
+        # Close the socket regardless of task status
+        try:
+            self.socket.close(linger=0)  # Don't wait for messages, close immediately
+            logger.info("Socket closed")
+        except Exception as e:
+            logger.error(f"Error closing socket: {e}", exc_info=True)
+
+        # IMPORTANT: Set task to None after cancellation
+        self.task = None
+        logger.info("DummyHuginServer stopped")
+
     async def _process_requests(self) -> None:
         """Process incoming ZMQ requests."""
-        while self.running:
-            try:
-                # Wait for request
-                message = await self.socket.recv_string()
-                logger.info(f"Received request: {message[:100]}...")
-                
-                # Parse YAML
+        try:
+            while self.running:
                 try:
-                    config = yaml.safe_load(message)
-                    logger.debug(f"Parsed config: {config}")
-                except yaml.YAMLError as e:
-                    logger.error(f"Failed to parse YAML: {e}", exc_info=True)
-                    await self.socket.send_string(f"{ImageError.FATAL_UNKNOWN.value} Invalid YAML")
-                    continue
-                
-                # Simulate processing time
-                delay = random.uniform(self.delay_min, self.delay_max)
-                logger.debug(f"Simulating processing delay of {delay:.2f}s")
-                await asyncio.sleep(delay)
-                
-                # Determine response based on error rate
-                if random.random() < self.error_rate:
-                    # Generate a random error response
-                    error = self._generate_random_error()
-                    logger.warning(f"Simulating error response: {error}")
-                    await self.socket.send_string(f"{error.value} Error")
-                else:
-                    # Success response
-                    logger.info("Simulating successful image acquisition")
-                    await self.socket.send_string(f"{ImageError.SUCCESS.value} Success")
-                    
-            except asyncio.CancelledError:
-                logger.info("Server task cancelled")
-                break
-            except Exception as e:
-                logger.error(f"Error processing request: {e}", exc_info=True)
-                # Try to send an error response
-                try:
-                    await self.socket.send_string(f"{ImageError.FATAL_UNKNOWN.value} Internal error")
-                except Exception:
-                    pass
+                    # Use a poller with a timeout to make this interruptible
+                    # This allows the server to check self.running periodically
+                    poller = zmq.asyncio.Poller()
+                    poller.register(self.socket, zmq.POLLIN)
+
+                    # Wait for a message with a 100ms timeout
+                    events = await poller.poll(timeout=100)
+
+                    # If no message received, just loop and check self.running again
+                    if not events:
+                        continue
+
+                    # Receive the message
+                    message = await self.socket.recv_string()
+                    logger.info(f"Received request: {message[:100]}...")
+
+                    # Parse YAML
+                    try:
+                        config = yaml.safe_load(message)
+                        logger.debug(f"Parsed config: {config}")
+                    except yaml.YAMLError as e:
+                        logger.error(f"Failed to parse YAML: {e}", exc_info=True)
+                        await self.socket.send_string(f"{ImageError.FATAL_UNKNOWN.value} Invalid YAML")
+                        continue
+
+                    # Simulate processing time
+                    delay = random.uniform(self.delay_min, self.delay_max)
+                    logger.debug(f"Simulating processing delay of {delay:.2f}s")
+                    await asyncio.sleep(delay)
+
+                    # Determine response based on error rate
+                    if random.random() < self.error_rate:
+                        # Generate a random error response
+                        error = self._generate_random_error()
+                        logger.warning(f"Simulating error response: {error}")
+                        await self.socket.send_string(f"{error.value} Error")
+                    else:
+                        # Success response
+                        logger.info("Simulating successful image acquisition")
+                        await self.socket.send_string(f"{ImageError.SUCCESS.value} Success")
+
+                except asyncio.CancelledError:
+                    logger.info("Server task cancelled")
+                    break
+                except Exception as e:
+                    if self.running:  # Only log if we're still supposed to be running
+                        logger.error(f"Error processing request: {e}", exc_info=True)
+                        # Try to send an error response
+                        try:
+                            await self.socket.send_string(f"{ImageError.FATAL_UNKNOWN.value} Internal error")
+                        except Exception:
+                            pass
+                    else:
+                        # We're shutting down, just exit the loop
+                        break
+        finally:
+            # Ensure socket is closed properly
+            logger.info("Exiting process_requests loop")
                 
     def _generate_random_error(self) -> ImageError:
         """Generate a random error for testing purposes."""
